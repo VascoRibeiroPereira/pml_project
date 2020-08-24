@@ -34,6 +34,9 @@ library(dplyr)
 library(caret)
 library(rpart)
 #library(dplyr)
+
+# training <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"), header = T)
+
 training <- read.csv("pml-training.csv")
 #training <- as_tibble(training)
 
@@ -71,7 +74,7 @@ names <- c(names, "classe")
 final_Subset <- v_smallTraining[,names]
 
 controlRf <- trainControl(method="cv", 5)
-modelRf <- train(classe ~ ., data=final_Subset, method="rf", trControl=controlRf, ntree=150)
+modelRf <- train(classe ~ ., data=v_smallTraining, method="rf", trControl=controlRf, ntree=150)
 
 # Alternative preProcess
 
