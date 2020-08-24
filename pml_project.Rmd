@@ -1,0 +1,184 @@
+---
+title: "PML Project"
+author: "Vasco Pereira"
+date: "8/22/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Goals   
+Predict the manner in which the subjects did the exercise, classified as the "classe" variable in the training set.
+The report describes:
+1 - How the model was built;
+2 - How cross validation was used;
+3 - The expected out of sample error;
+4 - A walthrough of the made choices.
+
+## Experimental Design   
+Six participants performed barbell lifts while monitored by 4 accelerometers:
+1 - belt
+2 - forearm
+3 - arm
+4 - dumbbell
+
+
+## Libraries
+library(dplyr)
+
+## Exploratory Data Analysis
+
+```{r }
+library(caret)
+library(rpart)
+#library(dplyr)
+training <- read.csv("pml-training.csv")
+#training <- as_tibble(training)
+
+# Turning NA into 0 and removing  -> training<- training[, colSums(is.na(training)) == 0]
+
+training <- as.matrix(training)
+training[is.na(training)]<-0
+
+summary(training) ## after a quick look, there was detected several columns without information
+
+
+# This can be used to throw away predictors with a near zero variance
+#nsv <- nearZeroVar(training, saveMetrics = T)
+
+nsv <- nearZeroVar(training)
+training_nsv <- (training[,-nsv])
+training_nsv[,59] <- as.numeric(as.factor(training_nsv[,59]))
+smallTraining <- as.data.frame(training_nsv)
+v_smallTraining <- smallTraining[,-(1:6)]
+
+decisionTreeMod1 <- rpart(classe ~ ., data=v_smallTraining, method="class")
+
+# não funciona
+#controlRf <- trainControl(method="cv", 5)
+#modelRf <- train(classe ~ ., data=v_smallTraining, method="rf", trControl=controlRf, ntree=150)
+
+
+new_training_num <- sapply(v_smallTraining,function(x)as.numeric(x))
+M <- abs(cor(new_training_num[,-53]))
+diag(M) <- 0
+#which(M>.8,arr.ind = T)
+cols_cor <- unique(as.numeric(which(M>.8,arr.ind = T)[,2]))
+names <- names(v_smallTraining)[cols_cor]
+names <- c(names, "classe")
+final_Subset <- v_smallTraining[,names]
+
+controlRf <- trainControl(method="cv", 5)
+modelRf <- train(classe ~ ., data=final_Subset, method="rf", trControl=controlRf, ntree=150)
+
+# Alternative preProcess
+
+preProc <- preProcess(v_smallTraining[,-53], method = "pca")
+trainPC <- predict(preProc, v_smallTraining[,-53])
+modelFit <- train(v_smallTraining$classe~., method = "glm", data = trainPC)
+
+###################################################
+modelFit <- train(classe~., method="rf", data=final_Subset)
+
+
+#modelFit <- train(smallTraining[,59]~., method="glm", preProcess="pca", data=smallTraining)
+
+# Correlated Predictors
+
+new_training_num <- sapply(v_smallTraining,function(x)as.numeric(x))
+M <- abs(cor(new_training_num[,-53]))
+diag(M) <- 0
+#which(M>.8,arr.ind = T)
+cols_cor <- unique(as.numeric(which(M>.8,arr.ind = T)[,2]))
+names <- names(v_smallTraining)[cols_cor]
+
+
+
+new_training <- training_nsv[,-(1:6)]
+new_training_num <- sapply(new_training,function(x)as.numeric(x))
+new_training_num <- as.data.frame(new_training_num)
+
+train(new_training_num[,53]~., method="glm", preProcess="pca", data=new_training_num)
+
+plot(prComp_Training$x[,1], prComp_Training$x[,2], col=training_nsv_num[,100])
+
+heatmap(x = new_training_num, col = col, symm = TRUE)
+
+
+#modelFit <- train(as.numeric(classe)~.,data=training_nsv,method="glm")
+
+
+
+
+
+## idealmente posso combinar as variaveis por dispositivo antes de fazer mais análises
+
+featurePlot(x=smallTraining[,1:59], y = smallTraining[,1:59], plot = "pairs")
+
+featurePlot(x=training[,c("gyros_forearm_y", "accel_forearm_z", "stddev_roll_forearm")], y = training[length(training)], plot = "pairs")
+
+
+
+
+modelFit <- train(as.numeric(classe)~.,data=training,method="glm")
+
+
+
+png(filename = "~/test.png", width = 800, height = 800)
+plot(classe~., data = training)
+dev.off()
+
+
+
+
+
+newdf <- training[,9:length(training)-1]
+
+emptyColumns <- sapply(newdf, function(x)all(x == "#DIV/0!" | x == "0.00" | x == "" | is.na(x) | x == "0.0000"))
+newdf <- newdf[!emptyColumns]
+
+## Cluster Analysis and heatmap
+newdf <- sapply(training_nsv,function(x)as.numeric(x))
+library("Hmisc")
+res2 <- rcorr(as.matrix(newdf))
+col<- colorRampPalette(c("blue", "white", "red"))(20)
+heatmap(x = res2$r, col = col, symm = TRUE)
+
+rs <- correlate(newdf)
+any_over_90 <- function(x) any(x > .9, na.rm = TRUE)
+rs <- rs %>% select_if(any_over_90)
+
+rs <- rs %>% 
+  focus_if(any_over_90, mirror = TRUE)
+rs %>% rplot()
+
+
+
+cor_newdf <- cor(newdf, method = "pearson", use = "complete.obs")
+
+```
+
+
+
+
+
+
+names(training)
+summary(training) ## after a quick look, there was detected several columns without information
+
+emptyColumns <- sapply(training, function(x)all(x == "#DIV/0!" | x == "0.00" | x == "" | is.na(x) | x == "0.0000"))
+training <- training[!emptyColumns]
+
+
+
+amplitude_yaw_forearm
+skewness_yaw_forearm
+kurtosis_yaw_forearm
+amplitude_yaw_dumbbell
+skewness_yaw_dumbbell
+kurtosis_yaw_dumbbell
+amplitude_yaw_belt 0.0000
+skewness_yaw_belt
+kurtosis_yaw_belt
