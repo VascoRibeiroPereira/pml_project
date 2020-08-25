@@ -26,38 +26,61 @@ Six participants performed barbell lifts while monitored by 4 accelerometers:
 
 
 ## Libraries
-library(dplyr)
-
-## Exploratory Data Analysis
 
 ```{r }
 library(caret)
-library(rpart)
-#library(dplyr)
+```
 
-# training <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"), header = T)
+## Exploratory Data Analysis
 
-training <- read.csv("pml-training.csv")
-#training <- as_tibble(training)
+### Download Data
 
-# Turning NA into 0 and removing  -> training<- training[, colSums(is.na(training)) == 0]
+```{r, cache=TRUE}
 
-training <- as.matrix(training)
+# Download data
+training <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"), 
+                     header = T)
+
+testing <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"), 
+                     header = T)
+```
+
+After downloading the data, it was observed a lot of missing values (it was made by the function `str()`) - not showned in this project.
+So we will clean the data by removing the missing values by this approuch:
+1 - turning missing values into **0**
+2 - removing predictors with *near zero variance*
+
+### Cleaning data
+
+```{r }
+
+# Turn NA into zero values
 training[is.na(training)]<-0
+testing[is.na(testing)]<-0
 
-summary(training) ## after a quick look, there was detected several columns without information
+# Getting near zero variance predictors
+nsv_training <- nearZeroVar(training)
+nsv_testing <- nearZeroVar(testing)
+
+# Removing the above predictors
+training_Clean <- (training[,-nsv])
+testing_Clean <- (testing[,-nsv])
+
+# Removing predictors that are not usefull for the analysis
+training_Clean <- training_Clean[,-(1:6)]
+testing_Clean <- testing_Clean[,-(1:6)]
 
 
-# This can be used to throw away predictors with a near zero variance
-#nsv <- nearZeroVar(training, saveMetrics = T)
 
-nsv <- nearZeroVar(training)
-training_nsv <- (training[,-nsv])
-training_nsv[,59] <- as.numeric(as.factor(training_nsv[,59]))
-smallTraining <- as.data.frame(training_nsv)
-v_smallTraining <- smallTraining[,-(1:6)]
 
-decisionTreeMod1 <- rpart(classe ~ ., data=v_smallTraining, method="class")
+
+
+
+v_smallTraining <- sapply(v_smallTraining,function(x)as.numeric(x))
+v_smallTraining <- as.data.frame(v_smallTraining)
+
+
+#decisionTreeMod1 <- rpart(classe ~ ., data=v_smallTraining, method="class")
 
 # não funciona
 #controlRf <- trainControl(method="cv", 5)
@@ -75,6 +98,19 @@ final_Subset <- v_smallTraining[,names]
 
 controlRf <- trainControl(method="cv", 5)
 modelRf <- train(classe ~ ., data=v_smallTraining, method="rf", trControl=controlRf, ntree=150)
+
+# Outra hipotese
+
+library(dplyr)
+library(randomForest)
+
+#sSmall <- sample_n(v_smallTraining, 100)  # not working
+
+sSmall <- v_smallTraining[,25:53]
+#sSmall <- sample_n(sSmall, 100)
+sSmall$classe <- as.factor(sSmall$classe)
+rs <- randomForest(classe ~ ., data=v_smallTraining)
+
 
 # Alternative preProcess
 
