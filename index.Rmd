@@ -1,0 +1,153 @@
+---
+title: "PML Project"
+author: "Vasco Pereira"
+date: "8/22/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Goals   
+Predict the manner in which the subjects did the exercise, classified as the "classe" variable in the training set.
+The report describes:   
+1 - Exploratory data analysis;   
+2 - How the model was built;   
+3 - How cross validation was used;   
+4 - The expected out of sample error;   
+5 - A walkthrough of the made choices.   
+
+## Libraries
+
+```{r, message=FALSE}
+library(caret)
+library(dplyr)
+library(ggplot2)
+```
+
+## Exploratory Data Analysis
+
+### Download Data
+
+```{r, cache=TRUE}
+
+# Download data
+training <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"), 
+                     header = T)
+
+testing <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"), 
+                     header = T)
+```
+
+Dimensions of the original data:   
+- training: `r dim(training)`   
+- testing: `r dim(testing)`   
+
+After downloading the data, it was observed a lot of missing values (it was made by the function `str()`) - not showed here.   
+So we will clean the data by removing the missing values by this approach:   
+1 - turning missing values into **0**   
+2 - removing predictors with *near zero variance*   
+
+### Cleaning data
+
+```{r, cache=TRUE}
+
+# Turn NA into zero values
+training[is.na(training)]<-0
+testing[is.na(testing)]<-0 # applying the same transformation to the test set
+
+# Getting near zero variance predictors for training set
+nsv_training <- nearZeroVar(training)
+
+# Removing the above predictors from both sets
+training_Clean <- (training[,-nsv_training])
+testing_Clean <- (testing[,-nsv_training]) # note that all the transformations are made with the training set near zero variance analysis
+
+# Removing predictors that are not useful for the analysis
+training_Clean <- training_Clean[,-(1:6)]
+testing_Clean <- testing_Clean[,-(1:6)] # applying the same transformation to the test set
+```
+
+So both training_Clean and testing_Clean had the same cleaning process and ended with this dimensions:   
+- training_Clean: `r dim(training_Clean)`   
+- testing_Clean: `r dim(testing_Clean)`   
+
+## Building the model
+### Subsetting the train data
+
+To build the model we need our Train set and a Test set with a known outcome in order to access the efficacy of the model. We start by subsetting the data for this purpose.
+
+``` {r }
+
+set.seed(32323)
+inTrain <- createDataPartition(y=training_Clean$classe,
+                               p=.75,
+                               list = F)
+
+trainData <- training_Clean[inTrain, ]
+testData <- training_Clean[-inTrain, ]
+
+```
+
+### Creating the model with cross validation
+
+The model was created with Random Forests in order to get greater accuracy, even if the process is a little slower. In order to prevent overfitting, the **train** function was tuned with a **trainControl** function with a 5 fold cross validation resampling method.
+
+```{r, cache=TRUE }
+
+set.seed(123)
+model <- train(classe ~ ., trainData, method = "rf", 
+               trControl = trainControl(method = "cv", 
+                                        number = 5))
+print(model)
+
+```
+
+Since the obtained model have a hight Accuracy: `r paste(round(model$results$Accuracy[1]*100,2), "%", sep="")`, it was used for the predicting in the test data.
+
+## Predicting
+
+Using the **predict()** function we apply the model above to the testData subsetted from the original training set. Then a confusion matrix is made to compare the predicted *classe* with the actual *classe* values.
+
+```{r, cache=TRUE}
+
+predictions <- predict(model, testData)
+
+cfMatrix <- confusionMatrix(predictions, testData$classe)
+```
+
+```{r, echo=FALSE, cache=TRUE}
+
+cfMatrix_Table <- data.frame(cfMatrix$table)
+
+plot_cf_Matrix <- cfMatrix_Table %>%
+    mutate(goodbad = ifelse(cfMatrix_Table$Prediction == cfMatrix_Table$Reference, "good", "bad")) %>%
+    group_by(Reference) %>%
+    mutate(prop = Freq/sum(Freq))
+
+ggplot(data = plot_cf_Matrix, mapping = aes(x = Reference, y = Prediction, fill = goodbad, alpha = prop)) +
+    geom_tile() +
+    geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+    scale_fill_manual(values = c(good = "green", bad = "red")) +
+    theme_bw() +
+    xlim(rev(levels(plot_cf_Matrix$Reference)))
+
+```
+
+
+### Accuracy and Out of sample error
+
+The **accuracy** of our model applied to the test data set is `r paste(round(as.numeric(cfMatrix$overall[1])*100, 2), "%", sep="")` and the 
+**out of sample error** is `r paste(round(as.numeric(1-cfMatrix$overall[1])*100, 2), "%", sep="")`.
+
+## Predicting for the testing data set
+
+Finally, the model is applied to the testing_Clean to predict the unknown "classe" outcome, not forgetting to remove the `problem_id` from the data frame.
+
+```{r }
+
+finalResult <- predict(model, testing_Clean[,-53])
+print(finalResult)
+
+```
