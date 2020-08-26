@@ -45,6 +45,10 @@ testing <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml
                      header = T)
 ```
 
+Dimentions of the original data:
+- training: `r dim(training)`
+- testing: `r dim(testing)`
+
 After downloading the data, it was observed a lot of missing values (it was made by the function `str()`) - not showned in this project.
 So we will clean the data by removing the missing values by this approuch:
 1 - turning missing values into **0**
@@ -52,172 +56,58 @@ So we will clean the data by removing the missing values by this approuch:
 
 ### Cleaning data
 
-```{r }
+```{r, cache=TRUE}
 
 # Turn NA into zero values
 training[is.na(training)]<-0
-testing[is.na(testing)]<-0
+testing[is.na(testing)]<-0 # applying the same transformation to the test set
 
-# Getting near zero variance predictors
+# Getting near zero variance predictors for training set
 nsv_training <- nearZeroVar(training)
-nsv_testing <- nearZeroVar(testing)
 
-# Removing the above predictors
-training_Clean <- (training[,-nsv])
-testing_Clean <- (testing[,-nsv])
+# Removing the above predictors from both sets
+training_Clean <- (training[,-nsv_training])
+testing_Clean <- (testing[,-nsv_training]) # note that all the transformations are made due to the training set analysis
 
 # Removing predictors that are not usefull for the analysis
 training_Clean <- training_Clean[,-(1:6)]
-testing_Clean <- testing_Clean[,-(1:6)]
-
-
-
-
-
-
-
-v_smallTraining <- sapply(v_smallTraining,function(x)as.numeric(x))
-v_smallTraining <- as.data.frame(v_smallTraining)
-
-
-#decisionTreeMod1 <- rpart(classe ~ ., data=v_smallTraining, method="class")
-
-# não funciona
-#controlRf <- trainControl(method="cv", 5)
-#modelRf <- train(classe ~ ., data=v_smallTraining, method="rf", trControl=controlRf, ntree=150)
-
-
-new_training_num <- sapply(v_smallTraining,function(x)as.numeric(x))
-M <- abs(cor(new_training_num[,-53]))
-diag(M) <- 0
-#which(M>.8,arr.ind = T)
-cols_cor <- unique(as.numeric(which(M>.8,arr.ind = T)[,2]))
-names <- names(v_smallTraining)[cols_cor]
-names <- c(names, "classe")
-final_Subset <- v_smallTraining[,names]
-
-controlRf <- trainControl(method="cv", 5)
-modelRf <- train(classe ~ ., data=v_smallTraining, method="rf", trControl=controlRf, ntree=150)
-
-# Outra hipotese
-
-library(dplyr)
-library(randomForest)
-
-#sSmall <- sample_n(v_smallTraining, 100)  # not working
-
-sSmall <- v_smallTraining[,25:53]
-#sSmall <- sample_n(sSmall, 100)
-sSmall$classe <- as.factor(sSmall$classe)
-rs <- randomForest(classe ~ ., data=v_smallTraining)
-
-
-# Alternative preProcess
-
-preProc <- preProcess(v_smallTraining[,-53], method = "pca")
-trainPC <- predict(preProc, v_smallTraining[,-53])
-modelFit <- train(v_smallTraining$classe~., method = "glm", data = trainPC)
-
-###################################################
-modelFit <- train(classe~., method="rf", data=final_Subset)
-
-
-#modelFit <- train(smallTraining[,59]~., method="glm", preProcess="pca", data=smallTraining)
-
-# Correlated Predictors
-
-new_training_num <- sapply(v_smallTraining,function(x)as.numeric(x))
-M <- abs(cor(new_training_num[,-53]))
-diag(M) <- 0
-#which(M>.8,arr.ind = T)
-cols_cor <- unique(as.numeric(which(M>.8,arr.ind = T)[,2]))
-names <- names(v_smallTraining)[cols_cor]
-
-
-
-new_training <- training_nsv[,-(1:6)]
-new_training_num <- sapply(new_training,function(x)as.numeric(x))
-new_training_num <- as.data.frame(new_training_num)
-
-train(new_training_num[,53]~., method="glm", preProcess="pca", data=new_training_num)
-
-plot(prComp_Training$x[,1], prComp_Training$x[,2], col=training_nsv_num[,100])
-
-heatmap(x = new_training_num, col = col, symm = TRUE)
-
-
-#modelFit <- train(as.numeric(classe)~.,data=training_nsv,method="glm")
-
-
-
-
-
-## idealmente posso combinar as variaveis por dispositivo antes de fazer mais análises
-
-featurePlot(x=smallTraining[,1:59], y = smallTraining[,1:59], plot = "pairs")
-
-featurePlot(x=training[,c("gyros_forearm_y", "accel_forearm_z", "stddev_roll_forearm")], y = training[length(training)], plot = "pairs")
-
-
-
-
-modelFit <- train(as.numeric(classe)~.,data=training,method="glm")
-
-
-
-png(filename = "~/test.png", width = 800, height = 800)
-plot(classe~., data = training)
-dev.off()
-
-
-
-
-
-newdf <- training[,9:length(training)-1]
-
-emptyColumns <- sapply(newdf, function(x)all(x == "#DIV/0!" | x == "0.00" | x == "" | is.na(x) | x == "0.0000"))
-newdf <- newdf[!emptyColumns]
-
-## Cluster Analysis and heatmap
-newdf <- sapply(training_nsv,function(x)as.numeric(x))
-library("Hmisc")
-res2 <- rcorr(as.matrix(newdf))
-col<- colorRampPalette(c("blue", "white", "red"))(20)
-heatmap(x = res2$r, col = col, symm = TRUE)
-
-rs <- correlate(newdf)
-any_over_90 <- function(x) any(x > .9, na.rm = TRUE)
-rs <- rs %>% select_if(any_over_90)
-
-rs <- rs %>% 
-  focus_if(any_over_90, mirror = TRUE)
-rs %>% rplot()
-
-
-
-cor_newdf <- cor(newdf, method = "pearson", use = "complete.obs")
-
+testing_Clean <- testing_Clean[,-(1:6)] # applying the same transformation to the test set
 ```
 
+So both training_Clean and testing_Clean had the same cleaning process and ended with this dimentions:
+- training_Clean: `r dim(training_Clean)`
+- testing_Clean: `r dim(testing_Clean)`
 
 
 
 
+``` {r }
+# subseting train data
+set.seed(32323)
+inTrain <- createDataPartition(y=training_Clean$classe,
+                               p=.75,
+                               list = F)
 
-names(training)
-summary(training) ## after a quick look, there was detected several columns without information
+trainData <- training_Clean[inTrain, ]
+testData <- training_Clean[-inTrain, ]
 
-emptyColumns <- sapply(training, function(x)all(x == "#DIV/0!" | x == "0.00" | x == "" | is.na(x) | x == "0.0000"))
-training <- training[!emptyColumns]
+# creating a model with rf method and 5 fold cross validation on training
 
+model <- train(classe ~ ., trainData, method = "rf", 
+               trControl = trainControl(method = "cv", 
+                                        number = 5, 
+                                        verboseIter = T))
 
+# testing the model on the test subset
 
-amplitude_yaw_forearm
-skewness_yaw_forearm
-kurtosis_yaw_forearm
-amplitude_yaw_dumbbell
-skewness_yaw_dumbbell
-kurtosis_yaw_dumbbell
-amplitude_yaw_belt 0.0000
-skewness_yaw_belt
-kurtosis_yaw_belt
+predictions <- predict(model, testData)
+
+# confusion matrix
+
+cfMatrix <- confusionMatrix(predictions, testData$classe)
+
+# Accuracy and Out of sample error
+paste(round(as.numeric(cfMatrix$overall[1])*100, 2), "%", sep="")
+paste(round(as.numeric(1-cfMatrix$overall[1])*100, 2), "%", sep="")
+
+```
